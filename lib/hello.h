@@ -1,5 +1,8 @@
-// NOTE: You could use https://michael-f-bryan.github.io/rust-ffi-guide/cbindgen.html to generate
-// this header automatically from your Rust code.  But for now, we'll just write it by hand.
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-void hello(char *name);
-void whisper(char *message);
+char *render_template(const char *template_, const char *data);
+
+void free_rust_string(char *name);

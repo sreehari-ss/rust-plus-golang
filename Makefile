@@ -13,7 +13,10 @@ build-dynamic:
 	@cd lib/hello && cargo build --release
 	@cp lib/hello/target/release/libhello.so lib/
 	go build -ldflags="-r $(ROOT_DIR)lib" main_dynamic.go
-
+build-dynamic-dylib:
+	@cd lib/hello && cargo build --release
+	@cp lib/hello/target/release/libhello.dylib lib/
+	go build -ldflags="-r $(ROOT_DIR)lib" main_dynamic.go
 .PHONY: build-static
 build-static:
 	@cd lib/hello && cargo build --release
@@ -23,7 +26,8 @@ build-static:
 .PHONY: run-dynamic
 run-dynamic: build-dynamic
 	@./main_dynamic
-
+run-dynamic-dylib: build-dynamic-dylib
+	@./main_dynamic
 .PHONY: run-static
 run-static: build-static
 	@./main_static
@@ -36,3 +40,5 @@ test-rust-lib:
 .PHONY: clean
 clean:
 	rm -rf main_dynamic main_static lib/libhello.so lib/libhello.a lib/hello/target
+clean-dylib:
+	rm -rf main_dynamic main_static lib/libhello.dylib lib/libhello.a lib/hello/target
