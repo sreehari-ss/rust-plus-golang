@@ -1,6 +1,7 @@
 extern crate handlebars;
 extern crate serde_json;
 use core::{error, fmt, str};
+use std::fmt::write;
 use handlebars::{Handlebars, RenderError, handlebars_helper};
 use lazy_static::lazy_static;
 use serde_json::{Error as SerdeJsonError, Value};
@@ -15,6 +16,7 @@ lazy_static! {
     pub static ref reg: Handlebars<'static> = {
         let mut hb = Handlebars::new();
         hb.register_helper("isdefined", Box::new(isdefined));
+        hb.set_strict_mode(true);
         hb
     };
 }
@@ -27,12 +29,19 @@ enum HBError {
     SerdeJsonError(SerdeJsonError),
     NulError(NulError),
     RenderError(RenderError),
-    Other,
+
 }
 
 impl fmt::Display for HBError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+     let errstr =    match self {
+            HBError::Utf8Error(utf8_error) => utf8_error.to_string(),
+            HBError::SerdeJsonError(error) => error.to_string(),
+            HBError::NulError(nul_error) => nul_error.to_string(),
+            HBError::RenderError(render_error) => render_error.to_string(),
+
+        };
+        write!(f,"{}",errstr )
     }
 }
 
@@ -75,12 +84,16 @@ impl FFIOut {
 impl From<Result<String, HBError>> for FFIOut {
     fn from(value: Result<String, HBError>) -> Self {
         let res: Result<CString, HBError> =
-            value.and_then(|value| CString::from_str(&value).map_err(|err| err.into()));
+            value.and_then(|value| {
+                let output = format!(r#"{{"value":"{}"}}"#,value);
+                 CString::from_str(&output).map_err(|err| err.into())
+                });
         match res {
             Ok(cstr) => Self::new(cstr.into_raw()),
             Err(err) => {
+                let err_string = format!(r#"{{"error":"{}"}}"#,&err.to_string() );
                 // it's okay to unwrap in here hoping error string wouldn't contain a null characters
-                let err_string = CString::from_str(&err.to_string()).unwrap();
+                let err_string = CString::from_str(&err_string).unwrap();
                 FFIOut::new(err_string.into_raw())
             }
         }
@@ -118,6 +131,16 @@ pub mod test {
 
     #[test]
     fn test_render_template() {
+        render_template(
+            CString::new("Good afternoon, {{name}}")
+                .unwrap()
+                .into_raw(),
+            CString::new(r#"{"name":"hari"}"#).unwrap().into_raw(),
+        );
+    }
+
+    #[test]
+    fn test_render_template_strictmode() {
         render_template(
             CString::new("Good afternoon, {{name}}, isDefined {{ isdefined age}}")
                 .unwrap()
